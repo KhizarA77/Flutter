@@ -11,15 +11,33 @@ class CustomPostList extends StatefulWidget {
 }
 
 class _CustomPostListState extends State<CustomPostList> {
+  List<Post> _post = [];
+  bool _isLoading = true;
 
-  Future<List<Post>> fetchAllPosts() async {
-    final response = await http.get(Uri.parse('https://jsonplaceholder.org/posts'));
-    if (response.statusCode == 200) {
-      List jsonResponse = jsonDecode(response.body);
-      return jsonResponse.map((post) => Post.fromJson(post)).toList();
-    } else {
+
+  Future<void> fetchAllPosts() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      final response = await http.get(Uri.parse('https://jsonplaceholder.org/posts'));
+      if (response.statusCode == 200) {
+        List jsonResponse = jsonDecode(response.body);
+        _post = jsonResponse.map((post) => Post.fromJson(post)).toList();
+      }
+    } catch (e) {
       throw Exception('Failed to load post');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
+  }
+
+  @override
+  void initState() {
+    fetchAllPosts();
+    super.initState();
   }
 
   @override
@@ -29,32 +47,18 @@ class _CustomPostListState extends State<CustomPostList> {
         title: const Text('Posts'),
       ),
       body: Center(
-        child: FutureBuilder(
-          future: fetchAllPosts(),
-          builder: (context, snap) {
-            if (snap.hasData) {
-              return ListView.builder(
-                itemCount: snap.data?.length,
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : ListView.builder(
+                itemCount: _post.length,
                 itemBuilder: (context, index) {
                   return ListTile(
-                    title: Text((snap.data as List<Post>)[index].title),
-                    subtitle: Text((snap.data as List<Post>)[index].content),
-                    leading: Image.network(
-                      (snap.data as List<Post>)[index].image,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                    ),
-
+                    title: Text(_post[index].title),
+                    subtitle: Text(_post[index].content),
+                    leading: Image.network(_post[index].image),
                   );
                 },
-              );
-            } else if (snap.hasError) {
-              return Text('Error in fetch');
-            }
-            return Center(child: CircularProgressIndicator());
-          },
-        ),
+              ),
       ),
     );
   }
